@@ -10,11 +10,11 @@ class VecOp:
     @staticmethod
     def noteToVector(data, dim):
         lenLongestMusic=max([len(music) for music in data])
-        m=np.zeros((len(data),lenLongestMusic,1,dim))
+        m=np.zeros((len(data),lenLongestMusic,dim))
         for i in range(len(data)):
             for j in range(len(data[i])):
                 for note in data[i][j]: # data[i][j] is a chord
-                    m[i][j][0][note]=1
+                    m[i][j][note]=1
         return m
 
 
@@ -22,34 +22,33 @@ class VecOp:
     def beatToVector(data, dim):
         vec=[]  
         lenLongestMusic=max([len(music) for music in data])
-        m=np.zeros((len(data),lenLongestMusic,1,dim))
+        m=np.zeros((len(data),lenLongestMusic,dim))
         for i in range(len(data)):
             longest=np.max(data[i]) # takes out the longest note
             standards=np.asarray([longest/math.pow(2,i) for i in range(dim-1)]+[0])
             for j in range(len(data[i])):
                 diff=np.abs(standards-data[i][j])
                 onNode=np.where(diff==np.min(diff))[0][0]
-                m[i][j][0][onNode]=1
+                m[i][j][onNode]=1
         return m
-        '''
-        for music in data:
-            v=[]
-            longest=np.max(music) # takes out the longest note
-            standards=np.asarray([longest/math.pow(2,i) for i in range(dim-1)]+[0])
-            for beat in music:
-                b=np.zeros((1,dim))
-                diff=np.abs(standards-beat)
-                b[0][np.where(diff==np.min(diff))[0][0]]=1
-                v.append(b)
-            vec.append(v)
-        return np.asarray(vec)
-        '''
+
+
+    # a common entrance of the "binarify" family.
+    # the extra cost of indirectly calling a function is minimum because it is called only 100 times when composing a piece of music.
+    # on the other hand, it significantly simplifies tweaking (allowing you to try on different flavours of binarify functions).
+    def binarify(self, mat):
+        return self.binarifyByProb(mat)
+
+
+    @staticmethod
+    def binarifyByProb(mat):
+        return (mat>np.random.random(mat.shape)).astype(int)
 
     
     # binarify a matrix according to the assigned probabilities.
     # for example, a matrix before binarifying is [[0.4]], so it has 40 percent of possibility to become 1.
     @staticmethod
-    def binarify(mat):
+    def binarifyByProb2(mat):
         res=[]
         for vec in mat:
             v2=[]
@@ -81,7 +80,7 @@ class VecOp:
                         onNotes[i]=-1
                 onNotes=list(filter(lambda x: x!=-1, onNotes))
             #print('onNotes='+str(onNotes))
-            v2=np.zeros((len(vec)))
+            v2=np.zeros((lekjn(vec)))
             for note in onNotes:
                 v2[note]=1
             res.append(v2)
@@ -133,8 +132,8 @@ class VecOp:
 
     # binarify a matrix. select the largest value in a vector and mark all values larger than itself*threshold.
     @staticmethod
-    def binarifyByComparitiveThreshold(mat, threshold=0.8):
-        return (mat>np.max(mat)*0.8).astype(int)
+    def binarifyByComparativeThreshold(mat, threshold=0.6):
+        return (mat>np.max(mat)*threshold).astype(int)
 
     
     # the reverse function of VecOp.noteToVector
