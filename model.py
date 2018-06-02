@@ -90,7 +90,7 @@ class simpleRNN:
 
     # initialize the hidden units by passing a part of a random human-composed track.
     # when composing music, doing this instead of giving input and hidden layer random values will prevent\
-    # the networ from wierd manners.
+    # the network from wierd behaviors.
     def initHiddenByMusic(self, music, len_frac=1/3):
         hm1=self.initHidden()
         for i in range(int(len(music)*len_frac)):
