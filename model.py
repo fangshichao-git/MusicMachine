@@ -11,40 +11,21 @@ from theano.tensor.nnet.nnet import sigmoid
 
 from vecop import VecOp
 
-# A model frame. Must be specialized with network types such as base_rnn or lstm
-
-class Model:
-
-    def __init__(self, inp_dim, out_dim):
-        self.ninp=inp_dim
-        self.nout=out_dim
-
-    def train(self, data):
-        pass
-
-    def saveParams(self, path):
-        pass
-
-    # run the network from a random state for n rounds. returns the collection of their outputs.
-    # this process is exactly the same when people goes into their fantastic worlds :)
-    def fantasize(self, round):
-        pass
-
-
 
 
 # a package of an entire simple recurrent neural network.
 # feel free to create instances for any usage (even beyond music generation).
-class simpleRNN(Model):
+class simpleRNN:
 
     # initialize the network.
     # you can specify the output layer regularizing method by passing olayer_type='sigmoid' or 'softmax'.
     # loading the pre-trained network parameters is also supported.
     def __init__(self, name, inp_dim, hid_dim, out_dim, olayer_type, param_path=None):
 
-        Model.__init__(self,inp_dim,out_dim)
         self.name=name
+        self.ninp=inp_dim
         self.nhid=hid_dim
+        self.nout=out_dim
         self.bound=20/math.sqrt(self.ninp) # a magic number for weight initialization.
         inp=T.matrix() # matrix for batch training.
         out=T.matrix()
