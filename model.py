@@ -41,6 +41,10 @@ class simpleRNN:
             self.w=cPickle.load(f)
             f.close()
 
+        self.vu=self.sharedZeros(self.ninp,self.nhid)
+        self.vv=self.sharedZeros(self.nhid,self.nout)
+        self.vw=self.sharedZeros(self.nhid,self.nhid)
+
         # compile the forwardPass function. varies by the output layer type.
         # if you use chord as a unit, preferably choose sigmoid.
         # if single notes are used, choose softmax because the network acts as a classifier.
@@ -58,19 +62,24 @@ class simpleRNN:
             loss=T.sum(-out*T.log(o))
         self.calcLoss=theano.function(inputs=[o,out], outputs=loss, allow_input_downcast=True)
 
-        # compile the general weight update function.
-        # the reason why it compiles this function even the networks uses pre-trained params is that\
-        # I rarely use this program for aesthetic purposes. ;)
+        # compile the velocity and weight update function (network trained with sgd+momentum).
+        # these functions are compiled even the network pre-loads trained params because
+        # I rarely use this program for aesthetic purposes. :)
         du=T.grad(loss, self.u)
         dv=T.grad(loss, self.v)
         dw=T.grad(loss, self.w)
-        learning_rate=T.scalar()
-        self.calcGradients=theano.function(inputs=[inp,hm1,out], outputs=[du,dv,dw], allow_input_downcast=True)
-        self.updateWeights=theano.function(inputs=[du,dv,dw,learning_rate], updates=[
-            (self.u, self.u-learning_rate*du),
-            (self.v, self.v-learning_rate*dv),
-            (self.w, self.w-learning_rate*dw)
+        alpha=T.scalar()
+        epsilon=T.scalar()
+        self.updateVelocity=theano.function(inputs=[inp,hm1,out,alpha,epsilon], updates=[
+            (self.vu, alpha*self.vu-epsilon*du),
+            (self.vv, alpha*self.vv-epsilon*dv),
+            (self.vw, alpha*self.vw-epsilon*dw)
         ], allow_input_downcast=True)
+        self.updateWeights=theano.function(inputs=[], updates=[
+            (self.u, self.u+self.vu),
+            (self.v, self.v+self.vv),
+            (self.w, self.w+self.vw),
+        ])
 
 
     # this function is used for weight initialization.
@@ -81,6 +90,11 @@ class simpleRNN:
                     high=np.sqrt(4 * 6. / (d1 + d2)),
                     size=(d1, d2)),
                     dtype=theano.config.floatX)
+        return theano.shared(value=values, borrow=True)
+
+
+    def sharedZeros(self, d1, d2):
+        values=np.zeros(shape=(d1, d2), dtype=theano.config.floatX)
         return theano.shared(value=values, borrow=True)
 
 
@@ -98,20 +112,22 @@ class simpleRNN:
         return hm1
 
 
-    # train the network. uses full batch learning (considering the relatively small size of training set).
+    # train the network with stochastic gradient descent with momentum.
+    # uses full batch learning (considering the relatively small size of training set).
     # turns out to be better than online learning.
     # "data" is a batch of pieces of music, where
     # "music" is a collection of sequences of vectors (representing beat, note, etc.)
     # e.g. data=[[music1=[chord1],[chord2],...],[music2]]
-    def train(self, data, epoch=500 ,lrate=0.15):
+    def train(self, data, epoch=500 ,alpha=0.5, epsilon=0.15):
         for e in range(epoch):
             total_error=0
             total_iter=0
             hm1=np.asarray(self.initHidden()*len(data))
             for n in range(len(data[0])-1):
-                du,dv,dw=self.calcGradients(data[:,n],hm1,data[:,n+1])
+                #du,dv,dw=self.calcGradients(data[:,n],hm1,data[:,n+1])
+                self.updateVelocity(data[:,n],hm1,data[:,n+1],alpha,epsilon)
                 out, hm1=self.forwardPass(data[:,n],hm1)
-                self.updateWeights(du,dv,dw,lrate)
+                self.updateWeights()
                 total_error+=self.calcLoss(out,data[:,n+1])
                 total_iter+=len(data)
             print('Epoch %d: Average Error = %lf\n'%(e,total_error/total_iter))        
